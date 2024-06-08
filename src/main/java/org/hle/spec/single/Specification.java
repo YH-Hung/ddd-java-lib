@@ -1,24 +1,33 @@
 package org.hle.spec.single;
 
+import java.util.Arrays;
+import java.util.stream.StreamSupport;
+
 @FunctionalInterface
 public interface Specification<T> {
 
     static <T> Specification<T> allOf(Iterable<Specification<T>> specifications) {
-        Specification<T> identity = t -> true;
-        for (Specification<T> specification : specifications) {
-            identity = identity.and(specification);
-        }
+        return StreamSupport.stream(specifications.spliterator(), false)
+                .reduce(new AndIdentitySpecification<>(), Specification::and);
+    }
 
-        return identity;
+    @SafeVarargs
+    static <T> Specification<T> allOf(Specification<T>... specifications) {
+        return allOf(Arrays.asList(specifications));
     }
 
     static <T> Specification<T> anyOf(Iterable<Specification<T>> specifications) {
-        Specification<T> identity = t -> false;
-        for (Specification<T> specification : specifications) {
-            identity = identity.or(specification);
-        }
+        return StreamSupport.stream(specifications.spliterator(), false)
+                .reduce(new OrIdentitySpecification<>(), Specification::or);
+    }
 
-        return identity;
+    @SafeVarargs
+    static <T> Specification<T> anyOf(Specification<T>... specifications) {
+        return anyOf(Arrays.asList(specifications));
+    }
+
+    static <T> Specification<T> not(Specification<T> specification) {
+        return new NotSpecification<>(specification);
     }
 
     boolean isSatisfiedBy(T t);
@@ -31,7 +40,4 @@ public interface Specification<T> {
         return new OrSpecification<>(this, specification);
     }
 
-    default Specification<T> not() {
-        return new NotSpecification<>(this);
-    }
 }
